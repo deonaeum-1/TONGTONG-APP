@@ -166,6 +166,14 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   String myLang = 'ko';
 
+  @override
+  void initState() {
+    super.initState();
+    // 폰의 시스템 언어를 기본값으로 (일본 폰이면 日本語가 미리 선택됨)
+    final d = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    if (langs.containsKey(d)) myLang = d;
+  }
+
   void _go(String room, bool isHost) {
     Navigator.of(context).push(MaterialPageRoute(
         builder: (_) =>
