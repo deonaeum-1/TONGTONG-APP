@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:typed_data/typed_data.dart' as td;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -57,9 +59,11 @@ const uiText = <String, Map<String, String>>{
     'scanHint': '앱이 없어도 돼요! 상대가 카메라로\n이 QR을 찍으면 바로 연결돼요',
     'connected': '연결됨',
     'connecting': '연결 중…',
-    'typeOrMic': '입력하거나 🎤를 누르고 말해주세요',
+    'typeOrMic': '메시지 입력',
     'listening': '듣는 중… 말이 끝나면 자동 전송돼요',
     'partner': '상대',
+    'guideType': '아래 칸에 문자로 입력하거나',
+    'guideMic': '🎤 버튼을 누르고 말해주세요',
   },
   'en': {
     'tagline': 'We translate for each other in real time',
@@ -72,9 +76,11 @@ const uiText = <String, Map<String, String>>{
     'scanHint': 'No app needed! The other person just\nscans this QR with their camera',
     'connected': 'Connected',
     'connecting': 'Connecting…',
-    'typeOrMic': 'Type, or tap 🎤 and speak',
+    'typeOrMic': 'Message',
     'listening': 'Listening… sends automatically when you pause',
     'partner': 'Partner',
+    'guideType': 'Type in the box below, or',
+    'guideMic': 'tap the 🎤 button and speak',
   },
 };
 
@@ -159,7 +165,6 @@ class SetupScreen extends StatefulWidget {
 
 class _SetupScreenState extends State<SetupScreen> {
   String myLang = 'ko';
-  final codeCtl = TextEditingController();
 
   void _go(String room, bool isHost) {
     Navigator.of(context).push(MaterialPageRoute(
@@ -242,43 +247,6 @@ class _SetupScreenState extends State<SetupScreen> {
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: codeCtl,
-                  textCapitalization: TextCapitalization.characters,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      letterSpacing: 4, fontSize: 18, color: C.ink),
-                  decoration: InputDecoration(
-                    hintText: tr(myLang, 'enterCode'),
-                    hintStyle: const TextStyle(
-                        color: C.hint, fontSize: 14, letterSpacing: 0),
-                    filled: true,
-                    fillColor: C.card,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: C.line)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: C.line)),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.all(14),
-                        foregroundColor: C.primary2,
-                        side: const BorderSide(color: C.primary2)),
-                    onPressed: () {
-                      final c = codeCtl.text.trim().toUpperCase();
-                      if (c.length >= 4) _go(c, false);
-                    },
-                    child: Text(tr(myLang, 'joinRoom'),
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -382,7 +350,8 @@ class _ChatScreenState extends State<ChatScreen> {
       for (final e in events) {
         final p = e.payload;
         if (p is! MqttPublishMessage) continue;
-        final raw = MqttPublishPayload.bytesToStringAsString(p.payload.message);
+        // UTF-8로 정확히 해독 (한국어·일본어 등 깨짐 방지)
+        final raw = utf8.decode(p.payload.message.toList(), allowMalformed: true);
         Map<String, dynamic> d;
         try {
           d = jsonDecode(raw) as Map<String, dynamic>;
@@ -415,8 +384,9 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
     obj['id'] = myId;
-    final b = MqttClientPayloadBuilder()..addString(jsonEncode(obj));
-    c.publishMessage(topic, MqttQos.atLeastOnce, b.payload!);
+    // UTF-8로 정확히 인코딩해서 전송 (addString은 한국어를 깨뜨림!)
+    final buf = td.Uint8Buffer()..addAll(utf8.encode(jsonEncode(obj)));
+    c.publishMessage(topic, MqttQos.atLeastOnce, buf);
   }
 
   // ----- 음성 (폰 내장 STT — 아이폰/안드로이드 모두 지원) -----
@@ -570,7 +540,36 @@ class _ChatScreenState extends State<ChatScreen> {
               ]),
             ),
           Expanded(
-            child: ListView.builder(
+            child: msgs.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.keyboard_alt_outlined,
+                                  size: 32,
+                                  color: C.hint.withOpacity(.55)),
+                              const SizedBox(width: 12),
+                              Icon(Icons.mic_none,
+                                  size: 32,
+                                  color: C.hint.withOpacity(.55)),
+                            ]),
+                        const SizedBox(height: 10),
+                        Text('${tr(lang, 'guideType')}\n${tr(lang, 'guideMic')}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: C.hint.withOpacity(.9),
+                                fontSize: 15,
+                                height: 1.6)),
+                        const SizedBox(height: 12),
+                        Icon(Icons.south_east,
+                            size: 26, color: C.hint.withOpacity(.6)),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
               controller: scrollCtl,
               padding: const EdgeInsets.all(14),
               itemCount: msgs.length,
