@@ -42,6 +42,7 @@ jobs:
             '<intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries>'
           )
           xml = xml.replace('<application', perms + '<application', 1)
+          xml = xml.replace('android:label="tongtong"', 'android:label="통TONG"')
           p.write_text(xml)
           print('Manifest patched')
           EOF
@@ -50,6 +51,7 @@ jobs:
         run: |
           cd build_app
           flutter pub get
+          dart run flutter_launcher_icons
           flutter build apk --release
 
       - name: Upload APK artifact
