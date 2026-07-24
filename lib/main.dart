@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
@@ -12,6 +13,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:translator/translator.dart';
 
 void main() => runApp(const TongTongApp());
+
+// 앱 없는 상대가 QR을 찍으면 열리는 웹 버전 주소 (같은 방에 연결됨)
+const webBase = 'https://deonaeum-1.github.io/tongtong/';
 
 // ---------- 민트 프렌들리 팔레트 ----------
 class C {
@@ -50,6 +54,7 @@ const uiText = <String, Map<String, String>>{
     'enterCode': '상대에게 받은 코드 입력',
     'waiting': '상대 연결을 기다리는 중…',
     'shareCode': '상대에게 이 코드를 알려주세요',
+    'scanHint': '앱이 없어도 돼요! 상대가 카메라로\n이 QR을 찍으면 바로 연결돼요',
     'connected': '연결됨',
     'connecting': '연결 중…',
     'typeOrMic': '입력하거나 🎤를 누르고 말해주세요',
@@ -64,6 +69,7 @@ const uiText = <String, Map<String, String>>{
     'enterCode': 'Enter the code you received',
     'waiting': 'Waiting for the other person…',
     'shareCode': 'Share this code with the other person',
+    'scanHint': 'No app needed! The other person just\nscans this QR with their camera',
     'connected': 'Connected',
     'connecting': 'Connecting…',
     'typeOrMic': 'Type, or tap 🎤 and speak',
@@ -534,14 +540,29 @@ class _ChatScreenState extends State<ChatScreen> {
                         offset: const Offset(0, 4))
                   ]),
               child: Column(children: [
+                QrImageView(
+                  data: '$webBase?room=${widget.room}',
+                  version: QrVersions.auto,
+                  size: 168,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square, color: C.ink),
+                  dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square, color: C.ink),
+                ),
+                const SizedBox(height: 10),
+                Text(tr(lang, 'scanHint'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: C.sub, fontSize: 13)),
+                const SizedBox(height: 12),
                 Text(tr(lang, 'shareCode'),
-                    style: const TextStyle(color: C.sub)),
-                const SizedBox(height: 6),
+                    style: const TextStyle(color: C.hint, fontSize: 12)),
+                const SizedBox(height: 4),
                 ShaderMask(
                   shaderCallback: (b) => C.grad.createShader(b),
                   child: Text(widget.room,
                       style: const TextStyle(
-                          fontSize: 36,
+                          fontSize: 30,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 8,
                           color: Colors.white)),
